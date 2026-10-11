@@ -9,7 +9,7 @@
  */
 
 /* Core types from the exercise (keep these) */
-#define HEAP_SIZE 4096
+#define HEAP_SIZE (4 * 1024)
 
 struct Header {
     bool used;
@@ -17,19 +17,28 @@ struct Header {
     struct Header* next;
 };
 
-static char HEAP[HEAP_SIZE] = {};
-static char* HEAD = HEAP;
+static void print_header(const struct Header* header) {
+    printf("Printing header information:\n");
+    printf("Where in memory is the header at: %p\n", header);
+    printf("Is the following memory used: %s\n", header->used ? "Yes" : "No");
+    printf("How big is the following memory: %zu bytes\n", header->size);
+    printf("Where in memory is the next header at: %p\n", header->next);
+    printf("\n");
+}
+
+static uint8_t HEAP[HEAP_SIZE] = {};
+static uint8_t* HEAD = HEAP;
 
 static void print_sizes() {
-    printf("Size of char: %zu\n", sizeof(char));
+    printf("Printing sizes information:\n");
+    printf("Size of uint8_t: %zu\n", sizeof(uint8_t));
     printf("Size of size_t: %zu\n", sizeof(size_t));
     printf("Size of int: %zu\n", sizeof(int));
     printf("Size of void*: %zu\n", sizeof(void*));
     printf("Size of Header: %zu\n", sizeof(struct Header));
+    printf("\n");
 }
 
-/* TODO: implement init_heap */
-/* TODO: implement my_malloc */
 /* TODO: implement my_free */
 /* TODO: implement print_heap */
 /* TODO: implement count_free_blocks */
@@ -38,10 +47,18 @@ static size_t get_remaining_memory() {
      return (size_t) HEAP + HEAP_SIZE - (size_t) HEAD;
 }
 
+static void print_remaining_memory() {
+    printf("Remaining memory: %zu\n", get_remaining_memory());
+}
+
+static void print_memory_info(void* array1) {
+    print_header((struct Header*) ((uint8_t*) array1 - sizeof(struct Header)));
+}
+
 static void init_heap() {
     print_sizes();
 
-    printf("\nStart allocation\n");
+    printf("Start allocation\n");
     HEAD = HEAP;
 }
 
@@ -55,7 +72,7 @@ static struct Header* create_header(const bool used, const size_t size, struct H
 }
 
 static void* my_malloc(const size_t bytes) {
-    printf("\nTrying to allocate %zu bytes\n", bytes);
+    printf("Trying to allocate %zu bytes\n", bytes);
 
     if (bytes == 0)
         return nullptr;
@@ -71,29 +88,63 @@ static void* my_malloc(const size_t bytes) {
 }
 
 static void my_free(void* ptr) {
-    printf("Free memory\n");
+    printf("Free memory at %p\n", ptr);
 }
 
 int main() {
     init_heap();
 
-    printf("\nRemaining memory: %zu\n", get_remaining_memory());
+    print_remaining_memory();
 
-    int* array = my_malloc(10 * sizeof(int));
+    int* array1 = my_malloc(10 * sizeof(int));
+    print_memory_info(array1);
 
-    printf("\nRemaining memory: %zu\n", get_remaining_memory());
+    print_remaining_memory();
 
     printf("Add data to memory\n");
     for (int i = 0; i < 10; i++)
-        array[i] = i;
+        array1[i] = i;
 
     printf("Read data from memory\n");
     for (int i = 0; i < 10; i++)
-        printf("i: %d\n", array[i]);
+        printf("i: %d\n", array1[i]);
+    printf("\n");
 
-    my_free(array);
 
-    printf("\nRemaining memory: %zu\n", get_remaining_memory());
+    int* array2 = my_malloc(10 * sizeof(int));
+    print_memory_info(array2);
+
+    print_remaining_memory();
+
+    printf("Add data to memory\n");
+    for (int i = 0; i < 10; i++)
+        array2[i] = i + 20;
+
+    printf("Read data from memory\n");
+    for (int i = 0; i < 10; i++)
+        printf("i: %d\n", array2[i]);
+    printf("\n");
+
+
+    int* array3 = my_malloc(10 * sizeof(int));
+    print_memory_info(array3);
+
+    print_remaining_memory();
+
+    printf("Add data to memory\n");
+    for (int i = 0; i < 10; i++)
+        array3[i] = i + 40;
+
+    printf("Read data from memory\n");
+    for (int i = 0; i < 10; i++)
+        printf("i: %d\n", array3[i]);
+    printf("\n");
+
+    my_free(array3);
+    my_free(array2);
+    my_free(array1);
+
+    print_remaining_memory();
 
     return 0;
 }
