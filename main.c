@@ -3,12 +3,9 @@
 #include <string.h>
 #include <stdint.h>
 
-/* Incomplete starter — implement the required behavior.
- * Stdin modes (if any): alloc, free, merge, edge, multi
- * Match the sample test output exactly. Hidden tests use the other inputs listed above.
- */
-
 #define HEAP_SIZE (4 * 1024)
+#define CHUNKS 10
+#define CHUNK_SIZE 16
 
 struct Header {
     bool used;
@@ -41,10 +38,6 @@ static void print_sizes() {
     printf("\n");
 }
 
-/* TODO: implement my_free */
-/* TODO: implement print_heap */
-/* TODO: implement count_free_blocks */
-
 static size_t get_remaining_memory() {
      return (size_t) HEAP + HEAP_SIZE - (size_t) NEXT_HEADER;
 }
@@ -64,11 +57,11 @@ static void init_heap() {
     NEXT_HEADER = HEAP;
 }
 
-static struct Header* create_header(const bool used, const size_t size, struct Header* next) {
+static struct Header* create_header(const size_t size) {
     const auto ptr = (struct Header*) NEXT_HEADER;
-    ptr->used = used;
+    ptr->used = true;
     ptr->size = size;
-    ptr->next = next;
+    ptr->next = nullptr;
     NEXT_HEADER += sizeof(struct Header);
     return ptr;
 }
@@ -79,18 +72,20 @@ static void* my_malloc(const size_t bytes) {
     if (bytes == 0)
         return nullptr;
 
-    if (get_remaining_memory() < (bytes + sizeof(struct Header)))
+    if (get_remaining_memory() < bytes + sizeof(struct Header))
         return nullptr;
 
-    struct Header* new_header = create_header(true, bytes, nullptr);
+    struct Header* new_header = create_header(bytes);
     void* new_data = NEXT_HEADER;
     NEXT_HEADER += bytes;
     new_header->next = (struct Header*) NEXT_HEADER;
     return new_data;
 }
 
-static bool merge_chunks(struct Header* header) {
-    if (!header || header == (struct Header*) NEXT_HEADER) return false;
+static bool defrag() {
+    const auto header = (struct Header*) HEAP;
+
+    if (header == (struct Header*) NEXT_HEADER) return false;
 
     if (header->used) return false;
 
@@ -112,13 +107,14 @@ static bool merge_chunks(struct Header* header) {
 }
 
 static void my_free(void* data) {
+    if (!data) return;
+
     printf("Freeing memory at header %p\n", get_header(data));
     struct Header* header = get_header(data);
     header->used = false;
     memset(data, 0, header->size);
 
-    // Defrag
-    while (merge_chunks(header)) {}
+    while (defrag()) {}
 
     print_memory_info(data);
     printf("Freed memory at header %p\n", get_header(data));
@@ -130,45 +126,35 @@ int main() {
     init_heap();
 
     print_remaining_memory();
+    int* ptrs[CHUNKS];
 
-    constexpr int chunks = 10;
-    int* ptrs[chunks];
-
-    for (int i = 0; i < chunks; i++) {
-        constexpr int chunk_size = 16;
-
-        ptrs[i] = my_malloc(chunk_size * sizeof(int));
+    for (int i = 0; i < CHUNKS; i++) {
+        ptrs[i] = my_malloc(CHUNK_SIZE * sizeof(int));
         print_memory_info(ptrs[i]);
 
         print_remaining_memory();
 
         printf("Add data to memory\n");
-        for (int j = 0; j < chunk_size; j++)
-            ptrs[i][j] = j + chunk_size * i;
+        for (int j = 0; j < CHUNK_SIZE; j++)
+            ptrs[i][j] = j + CHUNK_SIZE * i;
 
         printf("Read data from memory\n");
-        for (int j = 0; j < chunk_size; j++)
+        for (int j = 0; j < CHUNK_SIZE; j++)
             printf("i: %d\n", ptrs[i][j]);
 
         printf("\n");
     }
 
-    // for (int i = chunks - 1; i >= 0; i--)
-    //     my_free(ptrs[i]);
-
-    for (int i = 0; i < chunks; i++)
-        my_free(ptrs[i]);
-
-    // my_free(ptrs[1]);
-    // my_free(ptrs[2]);
-    // my_free(ptrs[4]);
-    // my_free(ptrs[3]);
-    // my_free(ptrs[0]);
-    // my_free(ptrs[6]);
-    // my_free(ptrs[7]);
-    // my_free(ptrs[9]);
-    // my_free(ptrs[8]);
-    // my_free(ptrs[5]);
+    my_free(ptrs[9]);
+    my_free(ptrs[1]);
+    my_free(ptrs[4]);
+    my_free(ptrs[8]);
+    my_free(ptrs[0]);
+    my_free(ptrs[6]);
+    my_free(ptrs[7]);
+    my_free(ptrs[3]);
+    my_free(ptrs[2]);
+    my_free(ptrs[5]);
 
     print_remaining_memory();
 
