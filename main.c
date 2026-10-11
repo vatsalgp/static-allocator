@@ -26,7 +26,6 @@ static void print_header(const struct Header* header) {
     printf("Is the following memory used: %s\n", header->used ? "Yes" : "No");
     printf("How big is the following memory: %zu bytes\n", header->size);
     printf("Where in memory is the next header at: %p\n", header->next);
-    printf("\n");
 }
 
 static uint8_t HEAP[HEAP_SIZE] = {};
@@ -91,25 +90,28 @@ static void* my_malloc(const size_t bytes) {
 }
 
 static void my_free(void* data) {
-    printf("Free memory at %p\n", data);
-
+    printf("Freeing memory at header %p\n", get_header(data));
     struct Header* header = get_header(data);
     header->used = false;
     memset(data, 0, header->size);
     struct Header* next_header = header->next;
 
     const bool isLast = next_header == (struct Header*) NEXT_HEADER;
-    if (!isLast) {
-        if (!next_header->used) {
-            struct Header* final_header = next_header->next;
-            const size_t next_size = next_header->size;
-            memset(next_header, 0, sizeof(struct Header));
-            header->next = final_header;
-            header->size += sizeof(struct Header) + next_size;
-        }
+    if (isLast) {
+        memset(header, 0, sizeof(struct Header));
+        NEXT_HEADER = (u_int8_t*) header;
+    } else if (!next_header->used) {
+        struct Header* final_header = next_header->next;
+        const size_t next_size = next_header->size;
+        memset(next_header, 0, sizeof(struct Header));
+        header->next = final_header;
+        header->size += sizeof(struct Header) + next_size;
     }
 
     print_memory_info(data);
+    printf("Freed memory at header %p\n", get_header(data));
+    print_remaining_memory();
+    printf("\n");
 }
 
 int main() {
@@ -161,10 +163,9 @@ int main() {
         printf("i: %d\n", array3[i]);
     printf("\n");
 
-    my_free(array3);
     my_free(array2);
+    my_free(array3);
     my_free(array1);
-
     print_remaining_memory();
 
     return 0;
