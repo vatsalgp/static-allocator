@@ -8,7 +8,6 @@
  * Match the sample test output exactly. Hidden tests use the other inputs listed above.
  */
 
-/* Core types from the exercise (keep these) */
 #define HEAP_SIZE (4 * 1024)
 
 struct Header {
@@ -16,6 +15,10 @@ struct Header {
     size_t size;
     struct Header* next;
 };
+
+static struct Header* get_header(void* data) {
+    return (struct Header*) ((uint8_t*) data - sizeof(struct Header));
+}
 
 static void print_header(const struct Header* header) {
     printf("Printing header information:\n");
@@ -27,7 +30,7 @@ static void print_header(const struct Header* header) {
 }
 
 static uint8_t HEAP[HEAP_SIZE] = {};
-static uint8_t* HEAD = HEAP;
+static uint8_t* NEXT_HEADER = HEAP;
 
 static void print_sizes() {
     printf("Printing sizes information:\n");
@@ -44,30 +47,30 @@ static void print_sizes() {
 /* TODO: implement count_free_blocks */
 
 static size_t get_remaining_memory() {
-     return (size_t) HEAP + HEAP_SIZE - (size_t) HEAD;
+     return (size_t) HEAP + HEAP_SIZE - (size_t) NEXT_HEADER;
 }
 
 static void print_remaining_memory() {
     printf("Remaining memory: %zu\n", get_remaining_memory());
 }
 
-static void print_memory_info(void* array1) {
-    print_header((struct Header*) ((uint8_t*) array1 - sizeof(struct Header)));
+static void print_memory_info(void* data) {
+    print_header(get_header(data));
 }
 
 static void init_heap() {
     print_sizes();
 
     printf("Start allocation\n");
-    HEAD = HEAP;
+    NEXT_HEADER = HEAP;
 }
 
 static struct Header* create_header(const bool used, const size_t size, struct Header* next) {
-    const auto ptr = (struct Header*) HEAD;
+    const auto ptr = (struct Header*) NEXT_HEADER;
     ptr->used = used;
     ptr->size = size;
     ptr->next = next;
-    HEAD += sizeof(struct Header);
+    NEXT_HEADER += sizeof(struct Header);
     return ptr;
 }
 
@@ -81,14 +84,32 @@ static void* my_malloc(const size_t bytes) {
         return nullptr;
 
     struct Header* new_header = create_header(true, bytes, nullptr);
-    void* new_data = HEAD;
-    HEAD += bytes;
-    new_header->next = (struct Header*) HEAD;
+    void* new_data = NEXT_HEADER;
+    NEXT_HEADER += bytes;
+    new_header->next = (struct Header*) NEXT_HEADER;
     return new_data;
 }
 
-static void my_free(void* ptr) {
-    printf("Free memory at %p\n", ptr);
+static void my_free(void* data) {
+    printf("Free memory at %p\n", data);
+
+    struct Header* header = get_header(data);
+    header->used = false;
+    memset(data, 0, header->size);
+    struct Header* next_header = header->next;
+
+    const bool isLast = next_header == (struct Header*) NEXT_HEADER;
+    if (!isLast) {
+        if (!next_header->used) {
+            struct Header* final_header = next_header->next;
+            const size_t next_size = next_header->size;
+            memset(next_header, 0, sizeof(struct Header));
+            header->next = final_header;
+            header->size += sizeof(struct Header) + next_size;
+        }
+    }
+
+    print_memory_info(data);
 }
 
 int main() {
