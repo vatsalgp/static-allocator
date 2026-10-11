@@ -89,24 +89,39 @@ static void* my_malloc(const size_t bytes) {
     return new_data;
 }
 
+static bool defrag(struct Header* header) {
+    struct Header* next_header = header->next;
+
+    do {
+        // is Last
+        if (next_header == (struct Header*) NEXT_HEADER) {
+            memset(header, 0, sizeof(struct Header));
+            NEXT_HEADER = (u_int8_t*) header;
+            return true;
+        }
+
+        if (next_header->used) return false;
+
+        defrag(next_header);
+    } while (true);
+
+    struct Header* final_header = next_header->next;
+    const size_t next_size = next_header->size;
+    memset(next_header, 0, sizeof(struct Header));
+    header->next = final_header;
+    header->size += sizeof(struct Header) + next_size;
+
+    return true;
+}
+
 static void my_free(void* data) {
     printf("Freeing memory at header %p\n", get_header(data));
     struct Header* header = get_header(data);
     header->used = false;
     memset(data, 0, header->size);
-    struct Header* next_header = header->next;
 
-    const bool isLast = next_header == (struct Header*) NEXT_HEADER;
-    if (isLast) {
-        memset(header, 0, sizeof(struct Header));
-        NEXT_HEADER = (u_int8_t*) header;
-    } else if (!next_header->used) {
-        struct Header* final_header = next_header->next;
-        const size_t next_size = next_header->size;
-        memset(next_header, 0, sizeof(struct Header));
-        header->next = final_header;
-        header->size += sizeof(struct Header) + next_size;
-    }
+    // Defrag
+    defrag(header);
 
     print_memory_info(data);
     printf("Freed memory at header %p\n", get_header(data));
@@ -119,53 +134,39 @@ int main() {
 
     print_remaining_memory();
 
-    int* array1 = my_malloc(10 * sizeof(int));
-    print_memory_info(array1);
+    constexpr int chunks = 10;
+    int* ptrs[chunks];
 
-    print_remaining_memory();
+    for (int i = 0; i < chunks; i++) {
+        constexpr int chunk_size = 16;
 
-    printf("Add data to memory\n");
-    for (int i = 0; i < 10; i++)
-        array1[i] = i;
+        ptrs[i] = my_malloc(chunk_size * sizeof(int));
+        print_memory_info(ptrs[i]);
 
-    printf("Read data from memory\n");
-    for (int i = 0; i < 10; i++)
-        printf("i: %d\n", array1[i]);
-    printf("\n");
+        print_remaining_memory();
 
+        printf("Add data to memory\n");
+        for (int j = 0; j < chunk_size; j++)
+            ptrs[i][j] = j + chunk_size * i;
 
-    int* array2 = my_malloc(10 * sizeof(int));
-    print_memory_info(array2);
+        printf("Read data from memory\n");
+        for (int j = 0; j < chunk_size; j++)
+            printf("i: %d\n", ptrs[i][j]);
 
-    print_remaining_memory();
+        printf("\n");
+    }
 
-    printf("Add data to memory\n");
-    for (int i = 0; i < 10; i++)
-        array2[i] = i + 20;
+    my_free(ptrs[1]);
+    my_free(ptrs[2]);
+    my_free(ptrs[4]);
+    my_free(ptrs[3]);
+    my_free(ptrs[0]);
+    my_free(ptrs[6]);
+    my_free(ptrs[7]);
+    my_free(ptrs[9]);
+    my_free(ptrs[8]);
+    my_free(ptrs[5]);
 
-    printf("Read data from memory\n");
-    for (int i = 0; i < 10; i++)
-        printf("i: %d\n", array2[i]);
-    printf("\n");
-
-
-    int* array3 = my_malloc(10 * sizeof(int));
-    print_memory_info(array3);
-
-    print_remaining_memory();
-
-    printf("Add data to memory\n");
-    for (int i = 0; i < 10; i++)
-        array3[i] = i + 40;
-
-    printf("Read data from memory\n");
-    for (int i = 0; i < 10; i++)
-        printf("i: %d\n", array3[i]);
-    printf("\n");
-
-    my_free(array2);
-    my_free(array3);
-    my_free(array1);
     print_remaining_memory();
 
     return 0;
