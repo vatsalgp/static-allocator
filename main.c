@@ -89,25 +89,22 @@ static void* my_malloc(const size_t bytes) {
     return new_data;
 }
 
-static bool defrag(struct Header* header) {
-    struct Header* next_header = header->next;
+static bool merge_chunks(struct Header* header) {
+    if (!header || header == (struct Header*) NEXT_HEADER) return false;
 
-    do {
-        // is Last
-        if (next_header == (struct Header*) NEXT_HEADER) {
-            memset(header, 0, sizeof(struct Header));
-            NEXT_HEADER = (u_int8_t*) header;
-            return true;
-        }
+    if (header->used) return false;
 
-        if (next_header->used) return false;
+    if (header->next == (struct Header*) NEXT_HEADER) {
+        memset(header, 0, sizeof(struct Header));
+        NEXT_HEADER = (u_int8_t*) header;
+        return true;
+    }
 
-        defrag(next_header);
-    } while (true);
+    if (header->next->used) return false;
 
-    struct Header* final_header = next_header->next;
-    const size_t next_size = next_header->size;
-    memset(next_header, 0, sizeof(struct Header));
+    struct Header* final_header = header->next->next;
+    const size_t next_size = header->next->size;
+    memset(header->next, 0, sizeof(struct Header));
     header->next = final_header;
     header->size += sizeof(struct Header) + next_size;
 
@@ -121,7 +118,7 @@ static void my_free(void* data) {
     memset(data, 0, header->size);
 
     // Defrag
-    defrag(header);
+    while (merge_chunks(header)) {}
 
     print_memory_info(data);
     printf("Freed memory at header %p\n", get_header(data));
@@ -156,16 +153,22 @@ int main() {
         printf("\n");
     }
 
-    my_free(ptrs[1]);
-    my_free(ptrs[2]);
-    my_free(ptrs[4]);
-    my_free(ptrs[3]);
-    my_free(ptrs[0]);
-    my_free(ptrs[6]);
-    my_free(ptrs[7]);
-    my_free(ptrs[9]);
-    my_free(ptrs[8]);
-    my_free(ptrs[5]);
+    // for (int i = chunks - 1; i >= 0; i--)
+    //     my_free(ptrs[i]);
+
+    for (int i = 0; i < chunks; i++)
+        my_free(ptrs[i]);
+
+    // my_free(ptrs[1]);
+    // my_free(ptrs[2]);
+    // my_free(ptrs[4]);
+    // my_free(ptrs[3]);
+    // my_free(ptrs[0]);
+    // my_free(ptrs[6]);
+    // my_free(ptrs[7]);
+    // my_free(ptrs[9]);
+    // my_free(ptrs[8]);
+    // my_free(ptrs[5]);
 
     print_remaining_memory();
 
