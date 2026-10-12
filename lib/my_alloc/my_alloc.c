@@ -6,17 +6,17 @@
 
 #define HEAP_SIZE (4 * 1024)
 
-struct Header {
+typedef struct Header {
     bool used;
     size_t size;
     struct Header* next;
-};
+} Header;
 
-static struct Header* get_header(void* data) {
-    return (struct Header*) ((uint8_t*) data - sizeof(struct Header));
+static Header* get_header(void* data) {
+    return (Header*) ((uint8_t*) data - sizeof(Header));
 }
 
-static void print_header(const struct Header* header) {
+static void print_header(const Header* header) {
     printf("Printing header information:\n");
     printf("Where in memory is the header at: %p\n", header);
     printf("Is the following memory used: %s\n", header->used ? "Yes" : "No");
@@ -33,7 +33,7 @@ static void print_sizes() {
     printf("Size of size_t: %zu\n", sizeof(size_t));
     printf("Size of int: %zu\n", sizeof(int));
     printf("Size of void*: %zu\n", sizeof(void*));
-    printf("Size of Header: %zu\n", sizeof(struct Header));
+    printf("Size of Header: %zu\n", sizeof(Header));
     printf("\n");
 }
 
@@ -49,35 +49,35 @@ static void print_memory_info(void* data) {
     print_header(get_header(data));
 }
 
-static struct Header* create_header(const size_t size) {
-    const auto ptr = (struct Header*) NEXT_HEADER;
+static Header* create_header(const size_t size) {
+    const auto ptr = (Header*) NEXT_HEADER;
     ptr->used = true;
     ptr->size = size;
     ptr->next = nullptr;
-    NEXT_HEADER += sizeof(struct Header);
+    NEXT_HEADER += sizeof(Header);
     return ptr;
 }
 
 static bool defrag() {
-    const auto header = (struct Header*) HEAP;
+    const auto header = (Header*) HEAP;
 
-    if (header == (struct Header*) NEXT_HEADER) return false;
+    if (header == (Header*) NEXT_HEADER) return false;
 
     if (header->used) return false;
 
-    if (header->next == (struct Header*) NEXT_HEADER) {
-        memset(header, 0, sizeof(struct Header));
+    if (header->next == (Header*) NEXT_HEADER) {
+        memset(header, 0, sizeof(Header));
         NEXT_HEADER = (u_int8_t*) header;
         return true;
     }
 
     if (header->next->used) return false;
 
-    struct Header* final_header = header->next->next;
+    Header* final_header = header->next->next;
     const size_t next_size = header->next->size;
-    memset(header->next, 0, sizeof(struct Header));
+    memset(header->next, 0, sizeof(Header));
     header->next = final_header;
-    header->size += sizeof(struct Header) + next_size;
+    header->size += sizeof(Header) + next_size;
 
     return true;
 }
@@ -95,13 +95,13 @@ void* my_malloc(const size_t bytes) {
     if (bytes == 0)
         return nullptr;
 
-    if (get_remaining_memory() < bytes + sizeof(struct Header))
+    if (get_remaining_memory() < bytes + sizeof(Header))
         return nullptr;
 
-    struct Header* new_header = create_header(bytes);
+    Header* new_header = create_header(bytes);
     void* new_data = NEXT_HEADER;
     NEXT_HEADER += bytes;
-    new_header->next = (struct Header*) NEXT_HEADER;
+    new_header->next = (Header*) NEXT_HEADER;
     return new_data;
 }
 
@@ -109,7 +109,7 @@ void my_free(void* data) {
     if (!data) return;
 
     printf("Freeing memory at header %p\n", get_header(data));
-    struct Header* header = get_header(data);
+    Header* header = get_header(data);
     header->used = false;
     memset(data, 0, header->size);
 
